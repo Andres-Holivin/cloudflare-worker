@@ -1,0 +1,13 @@
+node_modules
+dist
+.turbo
+.wrangler
+.env
+*.log
+.dev.vars
+
+# Build outputs
+apps/*/dist
+
+# OS files
+.DS_Store

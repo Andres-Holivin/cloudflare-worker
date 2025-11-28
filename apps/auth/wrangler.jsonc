@@ -1,0 +1,16 @@
+{
+  "name": "auth-worker",
+  "main": "src/index.ts",
+  "compatibility_date": "2024-11-21",
+  "dev": {
+    "port": 8787,
+    "inspector_port": 9229
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "production-db",
+      "database_id": "fb2c2699-a0c8-40bb-a492-61def5c369d3"
+    }
+  ]
+}
