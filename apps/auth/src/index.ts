@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
+import { HTTPException } from 'hono/http-exception';
 import { createDbD1, schema } from '@repo/db';
-import { hashPassword, verifyPassword, generateToken } from '@repo/utils';
+import { hashPassword, verifyPassword, generateToken, apiResponseMiddleware, registerApiErrorHandler } from '@repo/utils';
 import { eq } from 'drizzle-orm';
 
 type Bindings = {
@@ -9,7 +10,10 @@ type Bindings = {
 
 const app = new Hono<{ Bindings: Bindings }>();
 
-app.get('/health', (c) => c.json({ ok: true }));
+app.use('*', apiResponseMiddleware);
+registerApiErrorHandler(app);
+
+app.get('/health', (c) => c.ApiResponse({ ok: true }));
 
 app.post('/register', async (c) => {
     const { email, password } = await c.req.json();
@@ -26,7 +30,7 @@ app.post('/register', async (c) => {
         })
         .returning();
 
-    return c.json({ user: { id: result[0].id, email: result[0].email } });
+    return c.ApiResponse({ user: { id: result[0].id, email: result[0].email } }, 201);
 });
 
 app.post('/login', async (c) => {
@@ -40,22 +44,26 @@ app.post('/login', async (c) => {
         .limit(1);
 
     if (user.length === 0 || !verifyPassword(password, user[0].password)) {
-        return c.json({ error: 'Invalid credentials' }, 401);
+        throw new HTTPException(401, {
+            message: 'Invalid credentials'
+        });
     }
 
     const token = generateToken(user[0].id);
 
-    return c.json({ token, user: { id: user[0].id, email: user[0].email } });
+    return c.ApiResponse({ token, user: { id: user[0].id, email: user[0].email } });
 });
 
 app.get('/me', async (c) => {
     const auth = c.req.header('Authorization');
 
     if (!auth) {
-        return c.json({ error: 'Unauthorized' }, 401);
+        throw new HTTPException(401, {
+            message: 'Unauthorized'
+        });
     }
 
-    return c.json({ user: { id: 1, email: 'user@example.com' } });
+    return c.ApiResponse({ user: { id: 1, email: 'user@example.com' } });
 });
 
 export default app;

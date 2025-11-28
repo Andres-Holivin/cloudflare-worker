@@ -1,21 +1,27 @@
 import { Hono } from 'hono';
+import { HTTPException } from 'hono/http-exception';
 import { createDbD1, schema } from '@repo/db';
+import { apiResponseMiddleware, authMiddleware, registerApiErrorHandler, type AuthVariables } from '@repo/utils';
 import { eq } from 'drizzle-orm';
 
 type Bindings = {
     DB: D1Database;
 };
 
-const app = new Hono<{ Bindings: Bindings }>();
+const app = new Hono<{ Bindings: Bindings; Variables: AuthVariables }>();
 
-app.get('/health', (c) => c.json({ ok: true }));
+app.use('*', apiResponseMiddleware);
+app.use('*', authMiddleware);
+registerApiErrorHandler(app);
+
+app.get('/health', (c) => c.ApiResponse({ ok: true }));
 
 app.get('/products', async (c) => {
     const db = createDbD1(c.env.DB);
 
     const products = await db.select().from(schema.products);
 
-    return c.json({ products });
+    return c.ApiResponse({ products });
 });
 
 app.post('/products', async (c) => {
@@ -31,11 +37,11 @@ app.post('/products', async (c) => {
         })
         .returning();
 
-    return c.json({ product: result[0] });
+    return c.ApiResponse({ product: result[0] }, 201);
 });
 
 app.get('/products/:id', async (c) => {
-    const id = parseInt(c.req.param('id'));
+    const id = Number.parseInt(c.req.param('id'));
     const db = createDbD1(c.env.DB);
 
     const product = await db
@@ -45,10 +51,12 @@ app.get('/products/:id', async (c) => {
         .limit(1);
 
     if (product.length === 0) {
-        return c.json({ error: 'Product not found' }, 404);
+        throw new HTTPException(404, {
+            message: 'Product not found'
+        });
     }
 
-    return c.json({ product: product[0] });
+    return c.ApiResponse({ product: product[0] });
 });
 
 export default app;
